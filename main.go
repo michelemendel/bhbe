@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/michelemendel/bhbe/algolia"
@@ -22,7 +23,7 @@ func init() {
 	}
 
 	// > run --host 212.251.202.26
-	flag.StringVar(&hostAddr, "host", utils.GetIP(), "Host address")
+	flag.StringVar(&hostAddr, "host", os.Getenv("EXTERNAL_ADDRESS"), "Host address")
 	flag.StringVar(&apiServerPort, "apiport", "8588", "Port for the API server")
 	flag.Parse()
 }
