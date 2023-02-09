@@ -13,6 +13,7 @@ import (
 	"github.com/algolia/algoliasearch-client-go/v3/algolia/search"
 	"github.com/gorilla/mux"
 	"github.com/michelemendel/bhbe/algolia"
+	"github.com/michelemendel/bhbe/redis"
 	"github.com/michelemendel/bhbe/utils"
 	"go.uber.org/zap"
 )
@@ -29,9 +30,10 @@ const (
 	allowedHeaders = "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization,X-CSRF-Token"
 )
 
+// UUID is the unique identifier of the client
 type connection struct {
-	clientUuid      string
-	algoliaObjectId string
+	clientUuid      string //todo rename to UUID
+	algoliaObjectId string //todo remove
 	remoteAddr      string
 	writer          http.ResponseWriter
 	flusher         http.Flusher
@@ -40,14 +42,16 @@ type connection struct {
 
 type serverCtx struct {
 	connections  map[string]*connection // The key is the clientUuid of the client
-	algoliaIndex *search.Index
+	redCtx       *redis.RedisCtx
+	algoliaIndex *search.Index //todo remove
 	mutex        *sync.Mutex
 }
 
 func newServerCtx(searchIndex *search.Index) *serverCtx {
 	return &serverCtx{
 		connections:  map[string]*connection{},
-		algoliaIndex: searchIndex,
+		redCtx:       redis.InitRedisClient(),
+		algoliaIndex: searchIndex, //todo remove
 		mutex:        &sync.Mutex{},
 	}
 }
@@ -64,31 +68,30 @@ const (
 
 // Broadcast and reply message
 type message struct {
-	Error            string          `json:"error"`
-	MessageType      messageType     `json:"messagetype"`
-	BroadcastUUID    string          `json:"broadcastuuid"`
-	RepliesUUID      string          `json:"repliesuuid"`
-	FromUUID         string          `json:"fromuuid"`
-	ToUUID           string          `json:"touuid"`
-	FromUsername     string          `json:"fromusername"`
-	ToUsername       string          `json:"tousername"`
-	FromLoc          utils.Coords    `json:"fromloc"`
-	ToLoc            utils.Coords    `json:"toloc"`
-	TargetLoc        utils.Coords    `json:"targetloc"`
-	Radius           int             `json:"radius"`
-	DistanceToTarget float64         `json:"distancetotarget"`
-	DistanceToSender float64         `json:"distancetosender"`
-	MsgRows          []string        `json:"msgrows"`
-	NofRecipients    int             `json:"nofrecipients"`
-	Timer            int             `json:"timer"`
-	CreatedAt        utils.Timestamp `json:"createdat"`
+	Error            string       `json:"error"`
+	MessageType      messageType  `json:"messagetype"`
+	BroadcastUUID    string       `json:"broadcastuuid"`
+	RepliesUUID      string       `json:"repliesuuid"`
+	FromUUID         string       `json:"fromuuid"`
+	ToUUID           string       `json:"touuid"`
+	FromUsername     string       `json:"fromusername"`
+	ToUsername       string       `json:"tousername"`
+	FromLoc          utils.Coords `json:"fromloc"`
+	ToLoc            utils.Coords `json:"toloc"`
+	TargetLoc        utils.Coords `json:"targetloc"`
+	Radius           int          `json:"radius"`
+	DistanceToTarget float64      `json:"distancetotarget"`
+	DistanceToSender float64      `json:"distancetosender"`
+	MsgRows          []string     `json:"msgrows"`
+	NofRecipients    int          `json:"nofrecipients"`
+	Timer            int          `json:"timer"`
+	CreatedAt        string       `json:"createdat"`
 }
 
 // --------------------------------------------------------------------------------
 
 func StartApiServer(hostAddr, port string, algoliaIndex *search.Index) {
-	sCtx := newServerCtx(algoliaIndex)
-
+	sCtx := newServerCtx(algoliaIndex) //todo remove algoliaIndex
 	router := mux.NewRouter()
 
 	// SSE

@@ -11,12 +11,12 @@ type SearchResult struct {
 }
 
 type Location struct {
-	ErrorMsg   string      `json:"errorMsg"`
-	ObjectID   string      `json:"objectID"`
-	ClientUuid string      `json:"clientUuid"`
-	Name       string      `json:"name"`
-	UpdatedAt  u.Timestamp `json:"updatedAt"`
-	GeoLoc     GeoLoc      `json:"_geoloc"`
+	ErrorMsg   string `json:"errorMsg"`
+	ObjectID   string `json:"objectID"`
+	ClientUuid string `json:"clientUuid"`
+	Name       string `json:"name"`
+	UpdatedAt  string `json:"updatedAt"`
+	GeoLoc     GeoLoc `json:"_geoloc"`
 }
 
 type GeoLoc struct {

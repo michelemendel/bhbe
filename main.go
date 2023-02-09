@@ -6,6 +6,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/michelemendel/bhbe/algolia"
+	"github.com/michelemendel/bhbe/redis"
 	"github.com/michelemendel/bhbe/server"
 	"github.com/michelemendel/bhbe/utils"
 	"go.uber.org/zap"
@@ -28,8 +29,37 @@ func init() {
 	flag.Parse()
 }
 
-func main() {
+func main1() {
 	algoliaIndexName := algolia.IndexBeehlp{}
 	algoliaIndex := algolia.InitIndex(algoliaIndexName)
 	server.StartApiServer(hostAddr, apiServerPort, algoliaIndex)
+}
+
+func main() {
+	redCtx := redis.InitRedisClient()
+
+	// uuid := redCtx.CreateClient("John")
+
+	// uuid := "2LV2cDphbehdMIBFjNdv9CcXXrg"
+	// fmt.Printf("UUID: %s\n", uuid)
+
+	// uuid = redCtx.DeleteClient(uuid)
+	// uuid = redCtx.UpdateClient(uuid, "Arne")
+
+	// client := redCtx.GetClient(uuid)
+	// utils.PP(client)
+
+	// --------------------------------------------
+
+	// redCtx.ClearGeo()
+	// redCtx.AddGeo("A1", 12.5, 41.9)
+	// redCtx.AddGeo("A2", 12.55, 41.99)
+
+	// utils.PP(redCtx.DelGeo("A1"))
+	// utils.PP(redCtx.GetGeo("A1"))
+
+	slq := redCtx.SearchLocationQuery(12.555, 41.999, 2)
+	utils.PP(redCtx.SearchLocation(slq))
+	// utils.PP(redCtx.GetAllGeos())
+
 }
