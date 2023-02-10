@@ -38,28 +38,37 @@ func main1() {
 func main() {
 	redCtx := redis.InitRedisClient()
 
-	// uuid := redCtx.CreateClient("John")
+	// createSomeClientsWithGeos(redCtx)
+	// uuid := "client:2LXmzMC6WkIyll2f04xMENSHyrK"
 
-	// uuid := "2LV2cDphbehdMIBFjNdv9CcXXrg"
-	// fmt.Printf("UUID: %s\n", uuid)
+	// redCtx.DeleteClient(uuid)
+	// redCtx.UpsertClient(uuid, "ArneBobMartin")
 
-	// uuid = redCtx.DeleteClient(uuid)
-	// uuid = redCtx.UpdateClient(uuid, "Arne")
-
-	// client := redCtx.GetClient(uuid)
-	// utils.PP(client)
+	// utils.PP(redCtx.GetClient(uuid))
+	// utils.PP(redCtx.GetClientGeo(uuid))
 
 	// --------------------------------------------
 
 	// redCtx.ClearGeo()
-	// redCtx.AddGeo("A1", 12.5, 41.9)
-	// redCtx.AddGeo("A2", 12.55, 41.99)
-
-	// utils.PP(redCtx.DelGeo("A1"))
-	// utils.PP(redCtx.GetGeo("A1"))
-
-	slq := redCtx.SearchLocationQuery(12.555, 41.999, 2)
-	utils.PP(redCtx.SearchLocation(slq))
+	// utils.PP(redCtx.DelClientGeo(uuid))
+	// utils.PP(redCtx.SearchLocation(redCtx.SearchLocationQuery(12.511, 41.911, 30)))
 	// utils.PP(redCtx.GetAllGeos())
+	// redCtx.UpsertGeo(uuid, 12.511, 41.911)
 
+	// --------------------------------------------
+
+	// utils.PP(redCtx.DeleteClientGeos(redCtx.GetKeys("client:*")))
+	// utils.PP(redCtx.GetClients("*"))
+	utils.PP(redCtx.GetClientGeos("*"))
+	// utils.PP(redCtx.GetKeys("client:*"))
+
+}
+
+func createSomeClientsWithGeos(redCtx *redis.RedisCtx) {
+	uuid := redCtx.CreateClient("client:", "Arne")
+	redCtx.UpsertGeo(uuid, 12.511, 41.911)
+	uuid = redCtx.CreateClient("client:", "Bob")
+	redCtx.UpsertGeo(uuid, 12.522, 41.922)
+	uuid = redCtx.CreateClient("client:", "Carl")
+	redCtx.UpsertGeo(uuid, 12.533, 41.933)
 }
