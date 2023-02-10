@@ -35,7 +35,7 @@ type Client struct {
 }
 
 type Geo struct {
-	UUID    string  `json:"uuid"`
+	UUID    UUID    `json:"uuid"`
 	Lat     float64 `json:"lat"`
 	Lng     float64 `json:"lng"`
 	DistKm  float64 `json:"distKm"`
@@ -75,35 +75,37 @@ func (r RedisCtx) GetKeys(pattern string) []string {
 // --------------------------------------------------------------------------------
 // Client
 
-func (r RedisCtx) setClient(uuid, name string) string {
+type UUID string
+
+func (r RedisCtx) setClient(uuid UUID, name string) UUID {
 	ctx := context.Background()
 
 	if name == "" {
 		name = "Anonymous"
 	}
 
-	err := r.rdb.HSet(ctx, uuid, fUUID, uuid, fName, name, fUpdatedAt, utils.Now()).Err()
+	err := r.rdb.HSet(ctx, string(uuid), fUUID, uuid, fName, name, fUpdatedAt, utils.Now()).Err()
 	if err != nil {
 		lg.Warnf("[redis] Error setting client: %s. Err: %s", uuid, err)
 	}
 	return uuid
 }
 
-func (r RedisCtx) updateClientGeoUpdateAt(uuid string) string {
+func (r RedisCtx) updateClientGeoUpdateAt(uuid UUID) UUID {
 	ctx := context.Background()
 
-	err := r.rdb.HSet(ctx, uuid, fGeoUpdatedAt, utils.Now()).Err()
+	err := r.rdb.HSet(ctx, string(uuid), fGeoUpdatedAt, utils.Now()).Err()
 	if err != nil {
 		lg.Warnf("[redis] Error setting client: %s. Err: %s", uuid, err)
 	}
 	return uuid
 }
 
-func (r RedisCtx) CreateClient(clientPrefix, name string) string {
-	return r.setClient(clientPrefix+utils.GenerateUUID(), name)
+func (r RedisCtx) CreateClient(clientPrefix, name string) UUID {
+	return r.setClient(UUID(clientPrefix+utils.GenerateUUID()), name)
 }
 
-func (r RedisCtx) UpsertClient(uuid, name string) string {
+func (r RedisCtx) UpsertClient(uuid UUID, name string) UUID {
 	return r.setClient(uuid, name)
 }
 
@@ -119,12 +121,12 @@ func (r RedisCtx) DeleteClients(uuids []string) []string {
 	return uuids
 }
 
-func (r RedisCtx) GetClient(uuid string) *Client {
+func (r RedisCtx) GetClient(uuid UUID) *Client {
 	ctx := context.Background()
 
 	// Scan can't scan time
 	// err := r.rdb.HMGet(ctx, uuid, fName, fUpdatedAt).Scan(&client)
-	client, err := r.rdb.HMGet(ctx, uuid, fUUID, fName, fUpdatedAt, fGeoUpdatedAt).Result()
+	client, err := r.rdb.HMGet(ctx, string(uuid), fUUID, fName, fUpdatedAt, fGeoUpdatedAt).Result()
 	if err != nil {
 		lg.Infof("[redis] Error getting UUID %s. Err: %s ", uuid, err)
 	}
@@ -159,7 +161,7 @@ func (r RedisCtx) GetClients(pattern string) []Client {
 	iter := r.rdb.Scan(ctx, 0, ClientPrefix+pattern, 0).Iterator()
 	for iter.Next(ctx) {
 		fmt.Println("iter.Val(): ", iter.Val())
-		clients = append(clients, *r.GetClient(iter.Val()))
+		clients = append(clients, *r.GetClient(UUID(iter.Val())))
 	}
 	return clients
 }
@@ -167,11 +169,11 @@ func (r RedisCtx) GetClients(pattern string) []Client {
 // --------------------------------------------------------------------------------
 // Geo
 
-func (r RedisCtx) UpsertGeo(uuid string, lat, lng float64) string {
+func (r RedisCtx) UpsertGeo(uuid UUID, lat, lng float64) UUID {
 	ctx := context.Background()
 
 	geoLocation := &redis.GeoLocation{
-		Name:      uuid,
+		Name:      string(uuid),
 		Longitude: lng,
 		Latitude:  lat,
 	}
@@ -185,9 +187,9 @@ func (r RedisCtx) UpsertGeo(uuid string, lat, lng float64) string {
 	return uuid
 }
 
-func (r RedisCtx) GetGeo(uuid string) *Geo {
+func (r RedisCtx) GetGeo(uuid UUID) *Geo {
 	ctx := context.Background()
-	res, err := r.rdb.GeoPos(ctx, locations, uuid).Result()
+	res, err := r.rdb.GeoPos(ctx, locations, string(uuid)).Result()
 	if err != nil {
 		lg.Infof("[redis] Error getting geo for UUID %s. Err: %s ", uuid, err)
 	}
@@ -207,7 +209,7 @@ func (r RedisCtx) GetGeo(uuid string) *Geo {
 	}
 }
 
-func (r RedisCtx) DelGeo(uuid string) string {
+func (r RedisCtx) DeleteGeo(uuid string) string {
 	ctx := context.Background()
 	_, err := r.rdb.ZRem(ctx, locations, uuid).Result()
 	if err != nil {
@@ -216,7 +218,7 @@ func (r RedisCtx) DelGeo(uuid string) string {
 	return uuid
 }
 
-func (r RedisCtx) DelGeos(uuids []string) []string {
+func (r RedisCtx) DeleteGeos(uuids []string) []string {
 	ctx := context.Background()
 	if uuids == nil {
 		return []string{}
@@ -253,7 +255,7 @@ func (r RedisCtx) SearchLocation(query *redis.GeoSearchLocationQuery) []Geo {
 	geos := make([]Geo, len(res))
 	for idx, g := range res {
 		geos[idx] = Geo{
-			UUID:    g.Name,
+			UUID:    UUID(g.Name),
 			Lat:     g.Latitude,
 			Lng:     g.Longitude,
 			DistKm:  g.Dist,
@@ -278,7 +280,7 @@ func (r RedisCtx) ClearGeo() {
 // --------------------------------------------------------------------------------
 // ClientGeo
 
-func (r RedisCtx) GetClientGeo(uuid string) *ClientGeo {
+func (r RedisCtx) GetClientGeo(uuid UUID) *ClientGeo {
 	return &ClientGeo{
 		Client: *r.GetClient(uuid),
 		Geo:    *r.GetGeo(uuid),
@@ -290,17 +292,17 @@ func (r RedisCtx) GetClientGeos(pattern string) []ClientGeo {
 	var clients []ClientGeo
 	iter := r.rdb.Scan(ctx, 0, ClientPrefix+pattern, 0).Iterator()
 	for iter.Next(ctx) {
-		clients = append(clients, *r.GetClientGeo(iter.Val()))
+		clients = append(clients, *r.GetClientGeo(UUID(iter.Val())))
 	}
 	return clients
 }
 
 func (r RedisCtx) DeleteClientGeo(uuid string) string {
-	r.DelGeo(uuid)
+	r.DeleteGeo(uuid)
 	return r.DeleteClient(uuid)
 }
 
 func (r RedisCtx) DeleteClientGeos(uuids []string) []string {
-	r.DelGeos(uuids)
+	r.DeleteGeos(uuids)
 	return r.DeleteClients(uuids)
 }

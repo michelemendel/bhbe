@@ -41,17 +41,20 @@ type connection struct {
 }
 
 type serverCtx struct {
-	connections  map[string]*connection // The key is the clientUuid of the client
-	redCtx       *redis.RedisCtx
-	algoliaIndex *search.Index //todo remove
+	connections map[string]*connection // The key is the clientUuid of the client
+	redCtx      *redis.RedisCtx
+	//todo remove aXlgoliaIndex
+	algoliaIndex *search.Index
 	mutex        *sync.Mutex
 }
 
+// todo remove searchIndex
 func newServerCtx(searchIndex *search.Index) *serverCtx {
 	return &serverCtx{
-		connections:  map[string]*connection{},
-		redCtx:       redis.InitRedisClient(),
-		algoliaIndex: searchIndex, //todo remove
+		connections: map[string]*connection{},
+		redCtx:      redis.InitRedisClient(),
+		//todo remove aXlgoliaIndex
+		algoliaIndex: searchIndex,
 		mutex:        &sync.Mutex{},
 	}
 }
@@ -79,7 +82,7 @@ type message struct {
 	FromLoc          utils.Coords `json:"fromloc"`
 	ToLoc            utils.Coords `json:"toloc"`
 	TargetLoc        utils.Coords `json:"targetloc"`
-	Radius           int          `json:"radius"`
+	Radius           float64      `json:"radius"`
 	DistanceToTarget float64      `json:"distancetotarget"`
 	DistanceToSender float64      `json:"distancetosender"`
 	MsgRows          []string     `json:"msgrows"`
@@ -90,16 +93,24 @@ type message struct {
 
 // --------------------------------------------------------------------------------
 
+// todo remove aXlgoliaIndex
 func StartApiServer(hostAddr, port string, algoliaIndex *search.Index) {
-	sCtx := newServerCtx(algoliaIndex) //todo remove algoliaIndex
+	//todo remove aXlgoliaIndex
+	sCtx := newServerCtx(algoliaIndex)
 	router := mux.NewRouter()
 
-	// SSE
-	router.HandleFunc("/events/{clientUuid}", sCtx.SSEHandler).Methods("GET")
-	// curl -X GET "https://192.168.39.113:8588/info" -k
-	router.HandleFunc("/info", sCtx.GetServerCtxInfoHandler).Methods("GET")
+	// ----------------------------------------
+	// Operational endpoints
 	// curl -X GET "http://localhost:8588/cleardb"
 	router.HandleFunc("/cleardb", sCtx.clearServerCtxHandler).Methods("GET")
+	// curl -X GET "https://192.168.39.113:8588/info" -k
+	router.HandleFunc("/info", sCtx.GetServerCtxInfoHandler).Methods("GET")
+	// todo add endpoint to get info from redis. Maybe combine with the above one.
+
+	// ----------------------------------------
+	// Client endpoints
+	// SSE
+	router.HandleFunc("/events/{clientUuid}", sCtx.SSEHandler).Methods("GET")
 	// curl -X GET "http://localhost:8588/register/123?lat=1.23&lng=4.56"
 	router.HandleFunc("/register/", sCtx.RegisterHandler).Methods("GET")
 	router.HandleFunc("/register/{clientUuid}", sCtx.RegisterHandler).Methods("GET")
@@ -150,8 +161,15 @@ func (sCtx *serverCtx) UpdateGeoLocationHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	//TODO: mendel change to redis
 	lg.Infof("[UpdateGeoLocation] clientUuid:%s, objectId:%v, lat:%v, lng:%v, fromUsername:%s", clientUUID, conn.algoliaObjectId, mylat, myLng, fromUsername)
-	algolia.Update(sCtx.algoliaIndex, conn.algoliaObjectId, clientUUID, fromUsername, mylat, myLng)
+	//TODO: mendel change to redis
+	algolia.Update(sCtx.algoliaIndex, conn.algoliaObjectId, string(clientUUID), fromUsername, mylat, myLng)
+
+	// todo move to top
+	clientPrefix := "client:"
+	sCtx.redCtx.CreateClient(clientPrefix, fromUsername)
+	sCtx.redCtx.UpsertGeo(redis.UUID(clientUUID), mylat, myLng)
 
 	fmt.Fprintf(w, "%s\n", clientUUID)
 }
@@ -187,6 +205,7 @@ func (sCtx *serverCtx) SSEHandler(rw http.ResponseWriter, req *http.Request) {
 	sCtx.sendOpenEvent(conn)
 
 	defer func() {
+		//todo change to redis
 		lg.Infof("[SSEHandler] Removing clientID: %s, objectID: %s", conn.clientUuid, conn.algoliaObjectId)
 		sCtx.removeConnection(conn)
 	}()
@@ -229,10 +248,12 @@ func (sCtx *serverCtx) clearServerCtxHandler(w http.ResponseWriter, r *http.Requ
 	sCtx.clearServerCtxAndAlgoliaIndex()
 }
 
+// TODO: mendel change to redis
 func (sCtx *serverCtx) clearServerCtxAndAlgoliaIndex() {
 	sCtx.mutex.Lock()
 	defer sCtx.mutex.Unlock()
 	sCtx.connections = make(map[string]*connection)
+	//TODO: mendel change to use redis
 	algolia.ClearIndex(sCtx.algoliaIndex)
 }
 
@@ -306,7 +327,7 @@ func (sCtx *serverCtx) BroadcastHandler(w http.ResponseWriter, r *http.Request) 
 		radiusStr = "1" //km
 	}
 
-	radius, err := strconv.Atoi(radiusStr)
+	radius, err := strconv.ParseFloat(radiusStr, 64)
 	if err != nil {
 		lg.Errorf("[BroadcastHandler] Error converting radius to int using default (1 km): %v", err)
 		radius = 1 //km
@@ -463,7 +484,13 @@ func (sCtx *serverCtx) ReplyHandler(w http.ResponseWriter, r *http.Request) {
 // --------------------------------------------------------------------------------
 func (sCtx *serverCtx) broadcast(msg message) int {
 	// Note: Some of the recipients may not represent an active connection. This will be dealt with in the loop below
-	recipients := algolia.Recipients(sCtx.algoliaIndex, msg.TargetLoc.Lat, msg.TargetLoc.Lng, msg.Radius)
+
+	//TODO: mendel change to redis SearchLocation
+	// todo change msg.Radius to float64
+	recipientsX := sCtx.redCtx.SearchLocation(redis.InitRedisClient().SearchLocationQuery(msg.TargetLoc.Lat, msg.TargetLoc.Lng, msg.Radius))
+	fmt.Println("recipientsX: ", recipientsX)
+
+	recipients := algolia.Recipients(sCtx.algoliaIndex, msg.TargetLoc.Lat, msg.TargetLoc.Lng, int(msg.Radius))
 
 	fromConn := sCtx.connections[msg.FromUUID]
 	var toConn *connection
@@ -472,14 +499,14 @@ func (sCtx *serverCtx) broadcast(msg message) int {
 	var toLng float64
 	nofRecipients := 0
 
-	for i, rec := range recipients {
-		if rec == nil {
+	for i, recipient := range recipients {
+		if recipient == nil {
 			continue
 		}
 
-		toUUID = (*rec).ClientUuid
-		toLat = (*rec).Lat
-		toLng = (*rec).Lng
+		toUUID = (*recipient).ClientUuid
+		toLat = (*recipient).Lat
+		toLng = (*recipient).Lng
 
 		toConn = sCtx.getConnection(toUUID)
 		if toConn == nil {
@@ -548,6 +575,10 @@ func (sCtx *serverCtx) sendToOne(msg message) error {
 		eventType = "broadcast"
 		msg.ToUUID = msg.FromUUID //Send back to sender
 	} else if msg.MessageType == reply {
+
+		// todo change to GetGeo
+		recipientX := sCtx.redCtx.GetGeo(redis.UUID(msg.ToUUID))
+		fmt.Println("recipientX: ", recipientX)
 		recipient := algolia.Recipient(sCtx.algoliaIndex, msg.ToUUID)
 		msg.DistanceToSender = utils.Distance(msg.FromLoc.Lat, msg.FromLoc.Lng, recipient.Lat, recipient.Lng)
 	}
@@ -627,6 +658,9 @@ func (sCtx *serverCtx) sendError(conn *connection, msg message, errorMsg string)
 // If we don't have a connnection instance for this UUID, we look in the Algolia database to get the objectID,
 // create a connection instance, and add to the list of connections.
 // If we don't have a record in the Algolia database, we create one.
+
+// todo: Change to Redis slowly and carefully !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 func (sCtx *serverCtx) resolveConnection(clientUuid string) *connection {
 	sCtx.mutex.Lock()
 	defer sCtx.mutex.Unlock()
@@ -662,6 +696,7 @@ func (sCtx *serverCtx) getConnection(clientUuid string) *connection {
 }
 
 // --------------------------------------------------------------------------------
+// todo change to redis
 // Remove a connection from the list of connections and from the Algolia database.
 func (sCtx *serverCtx) removeConnection(conn *connection) {
 	if sCtx == nil {
@@ -681,9 +716,12 @@ func (sCtx *serverCtx) removeConnection(conn *connection) {
 
 	sCtx.mutex.Lock()
 	defer sCtx.mutex.Unlock()
+	// todo Change to redis
 	lg.Infof("[removeConnection] User %s w objID %s has disconnected. Removing it from local ctx and Algolia", conn.clientUuid, conn.algoliaObjectId)
 	delete(sCtx.connections, conn.clientUuid)
+	// change to redis
 	algolia.DeleteLocation(sCtx.algoliaIndex, conn.algoliaObjectId, conn.clientUuid)
+	// sCtx.redCtx.DeleteClientGeo(conn.clientUuid)
 }
 
 // --------------------------------------------------------------------------------
