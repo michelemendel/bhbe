@@ -100,6 +100,8 @@ func StartApiServer(hostAddr, port string) {
 
 	// ----------------------------------------
 	// Client endpoints
+	// curl -X GET "https://localhost:8588/registername/123"
+	router.HandleFunc("/registername/{uuid}", sCtx.RegisterNameHandler).Methods("POST")
 	// SSE
 	router.HandleFunc("/events/{uuid}", sCtx.SSEHandler).Methods("GET")
 	// curl -X GET "https://localhost:8588/register/123"
@@ -156,6 +158,29 @@ func (sCtx *serverCtx) clearConnectionsAndDb() {
 
 // --------------------------------------------------------------------------------
 // API
+
+func (sCtx *serverCtx) RegisterNameHandler(w http.ResponseWriter, r *http.Request) {
+	UUID := mux.Vars(r)["uuid"]
+	nickname := r.FormValue("fromnickname")
+	if nickname == "" {
+		nickname = "anonymous"
+	}
+
+	// TODO: mendel remove
+	fmt.Println("RegisterNameHandler", UUID, nickname)
+
+	conn := sCtx.getConnection(UUID)
+	if conn == nil {
+		lg.Infof("[RegisterNameHandler] No conn for UUID:(%s) %s", UUID)
+		fmt.Fprintf(w, "%s\n", "")
+		return
+	}
+
+	sCtx.redCtx.UpsertClientGeo(clientPrefix+UUID, nickname, 0, 0)
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	fmt.Fprintf(w, "Name %s registered for %s\n", nickname, UUID)
+}
 
 // Handler for getting a UUID and registering a client
 func (sCtx *serverCtx) RegisterHandler(w http.ResponseWriter, r *http.Request) {
