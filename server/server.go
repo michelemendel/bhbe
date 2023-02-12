@@ -249,7 +249,7 @@ func (sCtx *serverCtx) UpdateGeoLocationHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	utils.PP(sCtx.redCtx.UpsertClientGeo(clientPrefix+UUID, fromNickname, mylat, myLng))
+	sCtx.redCtx.UpsertClientGeo(clientPrefix+UUID, fromNickname, mylat, myLng)
 
 	fmt.Fprintf(w, "%s\n", UUID)
 }

@@ -23,3 +23,6 @@ logfiles/
 # Possible names for the binary
 beehlp
 bhbe
+
+# Redis
+dump.rdb
