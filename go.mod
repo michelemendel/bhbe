@@ -3,7 +3,6 @@ module github.com/michelemendel/bhbe
 go 1.19
 
 require (
-	github.com/algolia/algoliasearch-client-go/v3 v3.26.1
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.4.0
 	github.com/redis/go-redis/v9 v9.0.2
@@ -18,4 +17,5 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
+	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

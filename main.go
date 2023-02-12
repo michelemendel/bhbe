@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/michelemendel/bhbe/algolia"
 	"github.com/michelemendel/bhbe/redis"
 	"github.com/michelemendel/bhbe/server"
 	"github.com/michelemendel/bhbe/utils"
@@ -29,13 +28,11 @@ func init() {
 	flag.Parse()
 }
 
-func main1() {
-	algoliaIndexName := algolia.IndexBeehlp{}
-	algoliaIndex := algolia.InitIndex(algoliaIndexName)
-	server.StartApiServer(hostAddr, apiServerPort, algoliaIndex)
+func main() {
+	server.StartApiServer(hostAddr, apiServerPort)
 }
 
-func main() {
+func main1() {
 	redCtx := redis.InitRedisClient()
 
 	// createSomeClientsWithGeos(redCtx)
@@ -51,24 +48,26 @@ func main() {
 
 	// redCtx.ClearGeo()
 	// utils.PP(redCtx.DelClientGeo(uuid))
-	// utils.PP(redCtx.SearchLocation(redCtx.SearchLocationQuery(12.511, 41.911, 30)))
+	utils.PP(redCtx.SearchLocation(redCtx.SearchLocationQuery(12.511, 41.911, 30)))
 	// utils.PP(redCtx.GetAllGeos())
 	// redCtx.UpsertGeo(uuid, 12.511, 41.911)
 
 	// --------------------------------------------
 
-	// utils.PP(redCtx.DeleteClientGeos(redCtx.GetKeys("client:*")))
+	// utils.PP(redCtx.DeleteClientGeos(redCtx.GetKeys("*")))
 	// utils.PP(redCtx.GetClients("*"))
-	utils.PP(redCtx.GetClientGeos("*"))
-	// utils.PP(redCtx.GetKeys("client:*"))
+	// utils.PP(redCtx.GetClientGeos("*"))
+	// redCtx.DeleteKeys(redCtx.GetKeys("*"))
+	// utils.PP(redCtx.GetKeys("*"))
 
 }
 
 func createSomeClientsWithGeos(redCtx *redis.RedisCtx) {
-	uuid := redCtx.CreateClient("client:", "Arne")
+	prefix := "client:"
+	uuid := redCtx.UpsertClient(prefix+utils.GenerateUUID(), "Arne")
 	redCtx.UpsertGeo(uuid, 12.511, 41.911)
-	uuid = redCtx.CreateClient("client:", "Bob")
+	uuid = redCtx.UpsertClient(prefix+utils.GenerateUUID(), "Bob")
 	redCtx.UpsertGeo(uuid, 12.522, 41.922)
-	uuid = redCtx.CreateClient("client:", "Carl")
+	uuid = redCtx.UpsertClient(prefix+utils.GenerateUUID(), "Carl")
 	redCtx.UpsertGeo(uuid, 12.533, 41.933)
 }
