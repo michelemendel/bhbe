@@ -169,7 +169,7 @@ func (sCtx *serverCtx) RegisterNameHandler(w http.ResponseWriter, r *http.Reques
 		nickname = "anonymous"
 	}
 
-	lg.Infof("Set nickname %s for UUID %s", nickname, UUID, nickname)
+	lg.Infof("[RegisterNameHandler] Set nickname %s for UUID %s", nickname, UUID, nickname)
 
 	conn := sCtx.getConnection(UUID)
 	if conn == nil {
