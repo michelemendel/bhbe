@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -12,7 +11,6 @@ import (
 )
 
 var lg *zap.SugaredLogger
-var hostAddr, apiServerPort string
 
 func init() {
 	lg = utils.Log()
@@ -21,14 +19,11 @@ func init() {
 	if err != nil {
 		lg.Fatal("[main] Error loading file ", serverEnvFile)
 	}
-
-	// > run --host 212.251.202.26
-	flag.StringVar(&hostAddr, "host", os.Getenv("EXTERNAL_ADDRESS"), "Host address")
-	flag.StringVar(&apiServerPort, "apiport", "8588", "Port for the API server")
-	flag.Parse()
 }
 
 func main() {
+	hostAddr := os.Getenv("EXTERNAL_ADDRESS")
+	apiServerPort := os.Getenv("API_SERVER_PORT")
 	server.StartApiServer(hostAddr, apiServerPort)
 }
 
