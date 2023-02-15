@@ -169,8 +169,7 @@ func (sCtx *serverCtx) RegisterNameHandler(w http.ResponseWriter, r *http.Reques
 		nickname = "anonymous"
 	}
 
-	// TODO: mendel remove
-	fmt.Println("RegisterNameHandler", UUID, nickname)
+	lg.Infof("Set nickname %s for UUID %s", nickname, UUID, nickname)
 
 	conn := sCtx.getConnection(UUID)
 	if conn == nil {
