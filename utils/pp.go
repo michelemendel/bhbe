@@ -8,7 +8,7 @@ import (
 func PP(s any) {
 	res, err := PrettyStruct(s)
 	if err != nil {
-		lg.Fatal(err)
+		lg.Panic(err)
 	}
 	fmt.Println(res)
 }

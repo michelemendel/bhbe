@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -118,7 +117,8 @@ func StartApiServer(hostAddr, port string) {
 	certPath := os.Getenv("CERT_PATH")
 	publicKey := certPath + os.Getenv("PUBLIC_KEY_NAME")
 	privateKey := certPath + os.Getenv("PRIVATE_KEY_NAME")
-	log.Fatal(http.ListenAndServeTLS(":"+port, publicKey, privateKey, router))
+	// lg.Paninc(http3.ListenAndServeQUIC(":"+port, publicKey, privateKey, nil))
+	lg.Panic(http.ListenAndServeTLS(":"+port, publicKey, privateKey, router))
 }
 
 // --------------------------------------------------------------------------------

@@ -17,7 +17,7 @@ func init() {
 	serverEnvFile := utils.ResolveFilename("", ".env")
 	err := godotenv.Load(serverEnvFile)
 	if err != nil {
-		lg.Fatal("[main] Error loading file ", serverEnvFile)
+		lg.Panic("[main] Error loading file ", serverEnvFile)
 	}
 }
 
