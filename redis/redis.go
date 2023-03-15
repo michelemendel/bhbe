@@ -170,7 +170,10 @@ func (r RedisCtx) UpsertGeo(uuid string, lat, lng float64) string {
 
 func (r RedisCtx) GetGeo(uuid string) *data.Geo {
 	ctx := context.Background()
-	res, err := r.rdb.GeoPos(ctx, locations, string(uuid)).Result()
+
+	uuid = "client:" + uuid
+
+	res, err := r.rdb.GeoPos(ctx, locations, uuid).Result()
 	if err != nil {
 		lg.Infof("[redis] Error getting geo for UUID %s. Err: %s ", uuid, err)
 	}
